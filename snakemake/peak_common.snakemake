@@ -1,0 +1,887 @@
+shell.prefix('set -x;')
+include: 'common.snakemake'
+include: 'process_bam.snakemake'
+include: 'reassign_bam.snakemake'
+
+
+def get_all_inputs(wildcards):
+    available_inputs = dict(
+        ## star index
+        # Genome=expand(genome_dir+'/index/star/{rna_type}/Genome', rna_type=rna_types),
+        # SA=expand(genome_dir+'/index/star/{rna_type}/SA', rna_type=rna_types),
+        # ## bowtie2 index
+        # bt2_1=expand(genome_dir+'/index/bowtie2/{rna_type}.1.bt2', rna_type=rna_types),
+        # bt2rev_1=expand(genome_dir+'/index/bowtie2/{rna_type}.rev.1.bt2', rna_type=rna_types),
+
+        # bam=expand(output_dir+"/tbam/{sample_id}/bam/{rna_type}.bam",
+        #     sample_id=sample_ids, rna_type=rna_types),
+        # bam_dedup=expand("{output_dir}/tbam/{sample_id}/{bam_dedup_dir}/{rna_type}.bam",
+        #     output_dir=output_dir, sample_id=sample_ids, bam_dedup_dir=bam_dedup_dir, rna_type=rna_types),
+        # bam_dedup_merge_bam=expand("{output_dir}/tbam/{sample_id}/{bam_dedup_dir}/{rna_type}.bam",
+        #     output_dir=output_dir, sample_id=sample_ids, bam_dedup_dir=bam_dedup_dir, rna_type=['merge19_sort','merge11RNA_sort']), # merge11RNA_sort_primary
+        realigned_reverted_bam=expand("{output_dir}/tbam/{sample_id}/{bam_dedup_dir}-EM/{rna_type}/merged.sorted.bam",
+            output_dir=output_dir, sample_id=sample_ids, bam_dedup_dir=bam_dedup_dir, rna_type=merge_types), #  'merge11RNA_sort',
+        # realigned_reverted_bam2=expand("{output_dir}/tbam/{sample_id}/{bam_dedup_dir}-EM/{rna_type}/{bam_type}",
+        #     output_dir=output_dir, sample_id=sample_ids, bam_dedup_dir=bam_dedup_dir, rna_type=merge_types,bam_type=['unique.sorted.bam','unique.sorted.revertFullLengthReads.sorted.bam','allrealigned.sorted.bam'] ),
+        # bam_dedup2=expand("{output_dir}/tbam/{sample_id}/{bam_dedup_dir}/{rna_type}.bam",
+        #     output_dir=output_dir, sample_id=sample_ids, bam_dedup_dir=bam_dedup_dir, rna_type=['repeats_for','repeats_rev']),
+        # #bw
+        # tbw_EM= expand(peak_dir+'/tbigwig_RNA_EM/{sample_id}.transcriptome.bigWig',sample_id=sample_ids),
+        tbw_EM_norm= expand(peak_dir+'/tbigwig_RNA_EM_normalized/{sample_id}.transcriptome.bigWig',sample_id=sample_ids),
+        # tbw_primary= expand(peak_dir+'/tbigwig_11RNA_primary/{sample_id}.transcriptome.bigWig',sample_id=sample_ids),
+        # merge_reads_by_rnatype=expand(peak_dir+'/tbed_long_RNA/{sample_id}.bed.gz',
+        #     sample_id=sample_ids),
+        # bed=expand(peak_dir+'/tbed/{sample_id}/{rna_type}.bed.gz',peak_dir=peak_dir,sample_id=sample_ids, rna_type=rna_types),
+        # bg=expand(peak_dir+'/tbedgraph_long_RNA/{sample_id}.transcriptome.bedGraph',peak_dir=peak_dir,sample_id=sample_ids),
+        summarize_read_counts=expand('{output_dir}/tx_summary/read_counts.txt',output_dir=output_dir)
+    )
+    available_inputs_piranha = dict(
+        # piranha
+        realigned_reverted_bam=expand("{output_dir}/tbam/{sample_id}/{bam_dedup_dir}-EM/{rna_type}/merged.sorted.bam",
+            output_dir=output_dir, sample_id=sample_ids, bam_dedup_dir=bam_dedup_dir, rna_type=['merge11RNA_sort']),
+        piranha_out=expand(peak_dir+'/piranha_by_sample/b{bin_size}_p{pvalue}/{sample_id}.bed',bin_size=config['bin_size'], pvalue=config['call_peak_pvalue_piranha'], sample_id=sample_ids),
+        peak_piranha=expand(peak_dir+'/piranha/b{bin_size}_p{pvalue}.bed',bin_size=config['bin_size'], pvalue=config['call_peak_pvalue_piranha']),
+        # peak_count_matrix_piranha=expand(peak_dir+'/count_matrix/piranha_b{bin_size}_p{pvalue}.txt',bin_size=config['bin_size'], pvalue=config['call_peak_pvalue_piranha'])
+    )
+    available_inputs_clipper = dict(
+        # clipper
+        realigned_reverted_bam=expand("{output_dir}/tbam/{sample_id}/{bam_dedup_dir}-EM/{rna_type}/merged.sorted.bam",
+            output_dir=output_dir, sample_id=sample_ids, bam_dedup_dir=bam_dedup_dir, rna_type=['merge11RNA_sort']),
+        clipper_out=expand(peak_dir+'/clipper_by_sample/b{bin_size}_p{pvalue}/{sample_id}.bed',bin_size=config['bin_size'], pvalue=config['call_peak_pvalue_clipper'], sample_id=sample_ids),
+        peak_clipper=expand(peak_dir+'/clipper/b{bin_size}_p{pvalue}.bed',bin_size=config['bin_size'], pvalue=config['call_peak_pvalue_clipper']),
+        # peak_count_matrix_clipper=expand(peak_dir+'/count_matrix/clipper_b{bin_size}_p{pvalue}.txt',bin_size=config['bin_size'], pvalue=config['call_peak_pvalue_clipper'])
+    )
+    available_inputs_clam = dict(
+        # clam
+        realigned_reverted_bam=expand("{output_dir}/tbam/{sample_id}/{bam_dedup_dir}-EM/{rna_type}/merged.sorted.bam",
+            output_dir=output_dir, sample_id=sample_ids, bam_dedup_dir=bam_dedup_dir, rna_type=['merge11RNA_sort']),
+        clam_out=expand(peak_dir+'/clam_by_sample/b{bin_size}_p{pvalue}/{sample_id}.bed',bin_size=config['bin_size'], pvalue=config['call_peak_pvalue_clam'], sample_id=sample_ids),
+        peak_clam=expand(peak_dir+'/clam/b{bin_size}_p{pvalue}.bed',bin_size=config['bin_size'], pvalue=config['call_peak_pvalue_clam']),
+        # peak_count_matrix_clam=expand(peak_dir+'/count_matrix/clam_b{bin_size}_p{pvalue}.txt',bin_size=config['bin_size'], pvalue=config['call_peak_pvalue_clam'])
+    )
+    available_inputs_cfpeak = dict(
+        # ## cfPeak
+        # localmax_out3=expand(peak_dir+'/cfpeak_by_sample/b{bin_size}_d{decay}_p{pvalue}/{sample_id}.bed',bin_size=config['bin_size'],decay=config['decay_ratio'], pvalue=config['call_peak_pvalue_cfpeak'], sample_id=sample_ids),
+        # peak_localmax3=expand(peak_dir+'/cfpeak/b{bin_size}_d{decay}_p{pvalue}.bed', bin_size=config['bin_size'], decay=config['decay_ratio'], pvalue=config['call_peak_pvalue_cfpeak']),
+        # peak_count_matrix3=expand(peak_dir+'/count_matrix/cfpeak_b{bin_size}_d{decay}_p{pvalue}.txt',peak_dir=peak_dir, bin_size=config['bin_size'], decay=config['decay_ratio'], pvalue=config['call_peak_pvalue_cfpeak']),
+
+        ## cfPeakCNN
+        realigned_reverted_bam2=expand("{output_dir}/tbam/{sample_id}/{bam_dedup_dir}-EM/{rna_type}/merged.sorted.bam",
+            output_dir=output_dir, sample_id=sample_ids, bam_dedup_dir=bam_dedup_dir, rna_type=['merge19_sort']),
+        localmax_out4=expand(peak_dir+'/cfpeakCNN_by_sample/b{bin_size}_d{decay}_p{pvalue}/{sample_id}.bed',bin_size=config['bin_size'],decay=config['decay_ratio'], pvalue=config['call_peak_pvalue_cfpeak'], sample_id=sample_ids),
+        peak_localmax4=expand(peak_dir+'/cfpeakCNN/b{bin_size}_d{decay}_p{pvalue}.bed', bin_size=config['bin_size'], decay=config['decay_ratio'], pvalue=config['call_peak_pvalue_cfpeak']),
+        # # peak_idr1=expand(peak_dir+'/cfpeak_by_group/b{bin_size}_d{decay}_p{pvalue}_all.bed', bin_size=config['bin_size'], decay=config['decay_ratio'], pvalue=config['call_peak_pvalue_cfpeak']),
+        # # peak_idr2=expand(peak_dir+'/cfpeak_by_group/b{bin_size}_d{decay}_p{pvalue}_optimal.bed', bin_size=config['bin_size'], decay=config['decay_ratio'], pvalue=config['call_peak_pvalue_cfpeak']),
+        peak_count_matrix4=expand(peak_dir+'/count_matrix/cfpeakCNN_b{bin_size}_d{decay}_p{pvalue}.txt',peak_dir=peak_dir, bin_size=config['bin_size'], decay=config['decay_ratio'], pvalue=config['call_peak_pvalue_cfpeak'])
+    )
+
+    inputs = []
+
+    enabled_inputs = list(available_inputs)
+    for key, l in available_inputs.items():
+        if key in enabled_inputs:
+            inputs += l
+    
+    #piranha
+    if config['run_piranha']:
+        enabled_inputs_piranha = list(available_inputs_piranha)
+        for key, l in available_inputs_piranha.items():
+            if key in enabled_inputs_piranha:
+                inputs += l
+    #clipper
+    if config['run_clipper']:
+        enabled_inputs_clipper = list(available_inputs_clipper)
+        for key, l in available_inputs_clipper.items():
+            if key in enabled_inputs_clipper:
+                inputs += l
+    #clam
+    if config['run_clam']:
+        enabled_inputs_clam = list(available_inputs_clam)
+        for key, l in available_inputs_clam.items():
+            if key in enabled_inputs_clam:
+                inputs += l
+    #cfpeak
+    if config['run_cfpeak']:
+        enabled_inputs_cfpeak = list(available_inputs_cfpeak)
+        for key, l in available_inputs_cfpeak.items():
+            if key in enabled_inputs_cfpeak:
+                inputs += l
+                
+    return inputs
+
+
+
+#input bed should have no overlap interval
+peak_recurrence='''cat {input.bed} \
+            | bedtools sort \
+            | bedtools genomecov -i - -strand {params.strand} -g {input.chrom_sizes} -bg \
+            | awk -v s={params.strand} 'BEGIN{{OFS="\t";FS="\t"}}{{print $1,$2,$3,"X",$4,s}}' \
+            > {output}
+        '''
+
+filter_peak_recurrence='''awk -v c={params.cov_num} '$5 >= c' {input} \
+            | bedtools merge -s -c 2,3,5,6 -o collapse,collapse,collapse,collapse \
+            | awk 'BEGIN{{OFS="\t";FS="\t"}} 
+            {{split($4,a,/,/); split($5,b,/,/); split($6,c,/,/); split($7,d,/,/);
+            cov=0.0;for(i=1;i<=length(a);i++){{cov+=c[i]*(b[i]-a[i]);}} 
+            cov /= $3-$2;
+            print $1,$2,$3,"peak_" NR,cov,d[1]
+            }}' > {output}
+        '''
+# bedtools genomecov : merge adjacent peak with the same cov, like bedtools multiinter et al. (equals bedtools merge -d 0)  
+# bedtools merge -d -1 :   avoid merge adjacent clipper consensus peak 
+# also need piranha use adapted call_peak.R (add default bedtools merge -d 0 )
+
+
+
+
+########################################
+# run piranha/call_peaks.R
+########################################
+#use primary-mapped as input
+rule bin_coverage:
+    input:
+        bed=peak_dir+'/tbed_11RNA_primary/{sample_id}.bed.gz',
+        # bed=peak_dir+'/tbed_RNA_EM/{sample_id}.bed.gz',
+        chrom_sizes=genome_dir+'/chrom_sizes/transcriptome_genome_sort_uniq_newTxID'
+    output:
+        peak_dir+'/tbincov/{bin_size}/{sample_id}.bed'
+    threads: 2 #config['threads_mapping']
+    params:
+        bin_size=config['bin_size']
+    conda:
+        "./envs/piranha.yml"
+    shell:
+        '''pigz -d -c {input.bed} \
+            | {bin_dir}/bin_coverage /dev/stdin {input.chrom_sizes} {output} {params.bin_size}
+        '''
+#cal cov each seperate strand
+#PE: pigz -d -c {input.bed} | awk 'BEGIN{{OFS="\t";FS="\t"}} {{print $1,$2,$3,$4,$5,"+"}}'
+
+"""
+#note: piranha cannot run in (E) cluster: lack libso.1***
+rule call_peaks_piranha2:
+    input:
+        peak_dir+'/tbincov/{bin_size}/{sample_id}.bed'
+    output:
+        peak_dir+'/piranha_by_sample/b{bin_size}_p{pvalue_piranha}/{sample_id}.bed'
+    params:
+        #/lulabdata/shibinbin/projects/piranha-exrna-1.2.1/bin
+        distribution=config['distribution'],
+        #piranha_path="/Share2/home/lulab/shibinbin/projects/piranha-exrna-1.2.1/bin/"
+        piranha_path=config['piranha_path']
+    threads: config['threads_mapping']
+    shell:
+        '''{params.piranha_path}/Piranha -b {wildcards.bin_size} -d {params.distribution} \
+            -p {pvalue_piranha_param} -T bin_cov \
+            {input} | awk 'NF>=6' > {output}
+        '''
+"""
+
+#install.packages ("countreg", repos="http://R-Forge.R-project.org")
+rule call_peaks_piranha:
+    input:
+        peak_dir+'/tbincov/{bin_size}/{sample_id}.bed'
+    output:
+        peak_dir+'/piranha_by_sample/b{bin_size}_p{pvalue_piranha}/{sample_id}.bed'
+    threads: 2 #config['threads_mapping']
+    params:
+        tmpbed = peak_dir+'/piranha_by_sample/b{bin_size}_p{pvalue_piranha}/{sample_id}.bed.tmp',
+        minPeakLength = config['min_peak_size'],
+        maxPeakLength = config['max_peak_size'],
+        background=0.99
+    conda: 
+        "envs/piranha.yml"
+    shell:
+        '''Rscript scripts/piranha_call_peaks.R -p {pvalue_piranha_param} -i {input} -b {params.background} -o {output} 
+        awk '$3-$2>={params.minPeakLength} && $3-$2<={params.maxPeakLength}' {output} > {params.tmpbed}
+        mv {params.tmpbed} {output}
+        '''
+#cal cov each all strand together
+#default: -p 0.01
+#-p 0.{pvalue_piranha} 
+
+rule peak_recurrence_piranha:
+    input:
+        bed=lambda wildcards: expand(peak_dir+'/piranha_by_sample/b{bin_size}_p{pvalue_piranha}/{sample_id}.bed',
+            bin_size=bin_size,
+            pvalue_piranha=pvalue_piranha,
+            sample_id=sample_ids),
+        chrom_sizes=genome_dir+'/chrom_sizes/transcriptome_genome_sort_uniq_newTxID'
+    output:
+        peak_dir+'/piranha_recurrence/b{bin_size}_p{pvalue_piranha}.bed' #.{strand}
+    threads: 2 #config['threads_mapping']
+    params: strand = strand
+    run:
+        shell(peak_recurrence)
+
+rule filter_peak_by_recurrence_piranha:
+    input:
+        peak_dir+'/piranha_recurrence/b{bin_size}_p{pvalue_piranha}.bed'
+    output:
+        peak_dir+'/piranha/b{bin_size}_p{pvalue_piranha}.bed'
+    threads: 2 #config['threads_mapping']
+    params:
+        cov_num=cov_num
+    run:
+        shell(filter_peak_recurrence)
+
+
+
+
+########################################
+# run clipper
+########################################
+rule call_peaks_clipper:
+    input:
+        # output_dir+'/tbam/{sample_id}/'+bam_dedup_dir+'-EM/merge11RNA_sort/unique.sorted.revertFullLengthReads.sorted.bam',
+        output_dir+'/tbam/{sample_id}/'+bam_dedup_dir+'/merge11RNA_sort_primary.bam' 
+    output:
+        peak_dir+'/clipper_by_sample/b{bin_size}_p{pvalue_clipper}/{sample_id}.bed'
+    log: peak_dir+'/clipper_by_sample/b{bin_size}_p{pvalue_clipper}/log/{sample_id}.log'
+    threads: config['threads_mapping']
+    params:
+        # background=0.99
+        tmpbed = peak_dir+'/clipper_by_sample/b{bin_size}_p{pvalue_clipper}/{sample_id}.bed.tmp',
+        minPeakLength = config['min_peak_size'],
+        maxPeakLength = config['max_peak_size'],
+        strandness2 = strandness2,
+        bin_size = config['bin_size'],
+    # conda:
+    #     "./envs/clipper.yml"
+    shell:
+        '''
+        (echo "start at `date`";
+        export PATH={clipper_dir}:$PATH;
+        {clipper_dir}/clipper  \
+            -s hg38txNoDNAnewTxID --binomial 0.05 -v \
+            -b {input} \
+            -o {output} \
+            --processors {threads} --poisson-cutoff {pvalue_clipper_param} ;
+        awk '$3-$2>={params.minPeakLength} && $3-$2<={params.maxPeakLength}' {output} > {params.tmpbed};
+        mv {params.tmpbed} {output} ; 
+        echo "end at `date`" ) > {log} 2>&1
+        '''
+#--timeout 36000  
+# --reverse_strand {params.strandness2} # def:F
+#too time-consuming for hg38txNoRepeatsnewTxID
+# hg38txNoDNAnewTxID
+#Clipper outputs a bed8 file:
+#chromosome, genomic_start, genomic_stop, cluster_name, min_pval, strand, thick_start, thick_stop
+#default: --poisson-cutoff 0.05
+#--poisson-cutoff 0.{pvalue}
+
+rule peak_recurrence_clipper:
+    input:
+        bed=lambda wildcards: expand(peak_dir+'/clipper_by_sample/b{bin_size}_p{pvalue_clipper}/{sample_id}.bed',
+            bin_size=bin_size,
+            pvalue_clipper=pvalue_clipper,
+            sample_id=sample_ids),
+        chrom_sizes=genome_dir+'/chrom_sizes/transcriptome_genome_sort_uniq_newTxID'
+    output:
+        peak_dir+'/clipper_recurrence/b{bin_size}_p{pvalue_clipper}.bed' # .{strand}
+    threads: 2 #config['threads_mapping']
+    params: strand = strand
+    run:
+        shell(peak_recurrence)
+
+rule filter_peak_by_recurrence_clipper:
+    input:
+        peak_dir+'/clipper_recurrence/b{bin_size}_p{pvalue_clipper}.bed'
+    output:
+        peak_dir+'/clipper/b{bin_size}_p{pvalue_clipper}.bed'
+    threads: 2 #config['threads_mapping']
+    params:
+        cov_num=cov_num
+    run:
+        shell(filter_peak_recurrence)
+
+
+
+########################################
+# run clam
+########################################
+rule call_peaks_clam:
+    input:
+        uniq = output_dir+'/tbam/{sample_id}/'+bam_dedup_dir+'-EM/merge11RNA_sort/unique.sorted.bam',
+        realign = output_dir+'/tbam/{sample_id}/'+bam_dedup_dir+'-EM/merge11RNA_sort/allrealigned.sorted.bam',
+    output:
+        peak_dir+'/clam_by_sample/b{bin_size}_p{pvalue_clam}/{sample_id}.bed'
+    log: peak_dir+'/clam_by_sample/b{bin_size}_p{pvalue_clam}/log/{sample_id}.log'
+    threads: config['threads_mapping']
+    params:
+        # tmpbed = peak_dir+'/clam_by_sample/b{bin_size}_p{pvalue_clam}/{sample_id}.bed',
+        minPeakLength = config['min_peak_size'],
+        maxPeakLength = config['max_peak_size'],
+        strandness2 = strandness2,
+        bin_size = config['bin_size'],
+        gtf = config['clam_gtf'],
+        out_dir = peak_dir+'/clam_by_sample/b{bin_size}_p{pvalue_clam}/{sample_id}',
+        out_file = peak_dir+'/clam_by_sample/b{bin_size}_p{pvalue_clam}/{sample_id}/narrow_peak.permutation.bed',
+    # conda:
+    #     "./envs/cfpeak.yml"
+    shell:
+        '''
+        mkdir -p {params.out_dir}
+        {clam_dir}/CLAM permutation_callpeak \
+            -i {input.uniq} {input.realign} \
+            -o {params.out_dir} \
+            -p {threads} --qval-cutoff {pvalue_clam_param} --gtf {params.gtf} --extend 5 \
+            > {log} 2>&1 
+        awk '$3-$2>={params.minPeakLength} && $3-$2<={params.maxPeakLength}' {params.out_file} > {output}
+        '''
+#default: --qval-cutoff 0.005 --merge-size 50 --extend 50
+#0.{pvalue}
+
+rule peak_recurrence_clam:
+    input:
+        bed=lambda wildcards: expand(peak_dir+'/clam_by_sample/b{bin_size}_p{pvalue_clam}/{sample_id}.bed',
+            bin_size=bin_size,
+            pvalue_clam=pvalue_clam,
+            sample_id=sample_ids),
+        chrom_sizes=genome_dir+'/chrom_sizes/transcriptome_genome_sort_uniq_newTxID'
+    output:
+        peak_dir+'/clam_recurrence/b{bin_size}_p{pvalue_clam}.bed' # .{strand}
+    threads: 2 #config['threads_mapping']
+    params: strand = strand
+    run:
+        shell(peak_recurrence)
+
+rule filter_peak_by_recurrence_clam:
+    input:
+        peak_dir+'/clam_recurrence/b{bin_size}_p{pvalue_clam}.bed'
+    output:
+        peak_dir+'/clam/b{bin_size}_p{pvalue_clam}.bed'
+    threads: 2 #config['threads_mapping']
+    params:
+        cov_num=cov_num
+    run:
+        shell(filter_peak_recurrence)
+        
+
+
+
+
+########################################
+# run cfPeak
+########################################
+# call peaks using cfpeak (only consider + for strand)
+rule call_peaks_cfpeak:
+    input:
+        tbam=output_dir+'/tbam/{sample_id}/'+bam_dedup_dir+'-EM/merge19_sort/merged.sorted.bam',
+        # tbigwig=peak_dir+'/tbigwig_RNA_EM/{sample_id}.transcriptome.bigWig'
+        #tbigwig=peak_dir+'/tbincov/'+str(bin_size)+'/{sample_id}.bed'
+    output:
+        bed=peak_dir+'/cfpeak_by_sample/b{bin_size}_d{decay}_p{pvalue_cfpeak}/{sample_id}.bed'
+        #--min-cov 5 (default)
+    log: peak_dir+'/cfpeak_by_sample/b{bin_size}_d{decay}_p{pvalue_cfpeak}/log/{sample_id}.log'
+    params:
+        minPeakLength = config['min_peak_size'],
+        maxPeakLength = config['max_peak_size'],
+        bin_size=str(2*config['bin_size']),
+        localmaxMinCov = config['minLocalmaxBinCov'],
+        # pval = 1, # config['call_peak_pvalue'], default: not filter by poisson
+        # decay="0."+config['decay_ratio'],
+        # decay = 0.5,
+        boundary = "background",
+        mode = "local",
+    threads: max(2, config['threads_mapping'])
+    conda:
+        "./envs/cfpeak.yml"
+    shell:
+        '''python scripts/cfpeak.py call_peaks_localmax \
+            --boundary {params.boundary} --mode {params.mode} --max-iter 50 \
+            --permutate-pval 0.05 --poisson-pval {pvalue_cfpeak_param} \
+            --bin-width {params.bin_size} --min-peak-length {params.minPeakLength} --max-peak-length {params.maxPeakLength} \
+            --thread {threads} --decay 0.{wildcards.decay} --min-cov {params.localmaxMinCov} \
+            --input-bam {input.tbam} -o {output.bed}  > {log} 2>&1
+        '''
+
+# rule peak_recurrence_cfpeak:
+#     input:
+#         # bed=lambda wildcards: expand(peak_dir+"/"+"".join(["peaks_localmax_significant_EM"])+"/{sample_id}.bed",
+#         #     sample_id=sample_ids), 
+#         bed=lambda wildcards: expand(peak_dir+"/"+"".join(["cfpeak_by_sample"+"/b{bin_size}_d{decay}_p{pvalue_cfpeak}"])+"/{sample_id}.bed", #  if config['filter_localmax_peak_qvalue'] else "peaks_localmax_by_sample_EM"+"b{bin_size}_d{decay}"
+#             sample_id=sample_ids, bin_size=bin_size, decay=decay, pvalue_cfpeak=pvalue_cfpeak), 
+#         chrom_sizes=genome_dir+'/chrom_sizes/transcriptome_genome_sort_uniq_newTxID'
+#     output:
+#         temp(peak_dir+'/cfpeak_recurrence/b{bin_size}_d{decay}_p{pvalue_cfpeak}.bed')
+#     threads:  min(2, config['threads_mapping'])
+#     params: strand = strand
+#     run:
+#         shell(peak_recurrence)
+
+# rule filter_peak_by_recurrence_cfpeak:
+#     input:
+#         peak_dir+'/cfpeak_recurrence/b{bin_size}_d{decay}_p{pvalue_cfpeak}.bed'
+#     output:
+#         peak_dir+'/cfpeak/b{bin_size}_d{decay}_p{pvalue_cfpeak}.bed'
+#     threads: min(2, config['threads_mapping'])
+#     params:
+#         cov_threshold=len(sample_ids)*config['cov_threshold'],
+#         min_peak_length=10
+#     run:
+#         shell(filter_peak_recurrence)
+
+
+########################################
+# run cfPeak CNN filtering
+########################################
+# call peaks using cfpeak (only consider + for strand)
+rule CNN:
+    input:
+        bed=peak_dir+'/cfpeak_by_sample/b{bin_size}_d{decay}_p{pvalue_cfpeak}/{sample_id}.bed',
+        tbigwig=peak_dir+'/tbigwig_RNA_EM/{sample_id}.transcriptome.bigWig',
+        tx_table="/BioII/lulab_b/baopengfei/projects/WCHSU-FTC/exSeek-dev/genome/hg38/chrom_sizes/tx_gn_length_newTxID.txt"
+    output:
+        bed=peak_dir+'/cfpeakCNN_by_sample/b{bin_size}_d{decay}_p{pvalue_cfpeak}/{sample_id}.bed'
+    log: peak_dir+'/cfpeakCNN_by_sample/b{bin_size}_d{decay}_p{pvalue_cfpeak}/log/{sample_id}.log'
+    params:
+        cutoff=0.5,
+        half_bin_size=50
+    threads: max(2, config['threads_mapping'])
+    conda:
+        "./envs/cfpeak_cnn.yml"
+    shell:
+        '''python scripts/anomaly_detection.py \
+            --bed6 {input.bed} \
+            --bigwig {input.tbigwig} \
+            --half_bin_size {params.half_bin_size} \
+            --tx_tab {input.tx_table} \
+            --threshold {params.cutoff} \
+            --output {output.bed} \
+            > {log} 2>&1
+        '''
+
+
+rule peak_recurrence_cfpeakCNN:
+    input:
+        # bed=lambda wildcards: expand(peak_dir+"/"+"".join(["peaks_localmax_significant_EM"])+"/{sample_id}.bed",
+        #     sample_id=sample_ids), 
+        bed=lambda wildcards: expand(peak_dir+"/"+"".join(["cfpeakCNN_by_sample"+"/b{bin_size}_d{decay}_p{pvalue_cfpeak}"])+"/{sample_id}.bed", #  if config['filter_localmax_peak_qvalue'] else "peaks_localmax_by_sample_EM"+"b{bin_size}_d{decay}"
+            sample_id=sample_ids, bin_size=bin_size, decay=decay, pvalue_cfpeak=pvalue_cfpeak), 
+        chrom_sizes=genome_dir+'/chrom_sizes/transcriptome_genome_sort_uniq_newTxID'
+    output:
+        temp(peak_dir+'/cfpeakCNN_recurrence/b{bin_size}_d{decay}_p{pvalue_cfpeak}.bed')
+    threads:  min(2, config['threads_mapping'])
+    params: strand = strand
+    run:
+        shell(peak_recurrence)
+
+
+rule filter_peak_by_recurrence_cfpeakCNN:
+    input:
+        peak_dir+'/cfpeakCNN_recurrence/b{bin_size}_d{decay}_p{pvalue_cfpeak}.bed'
+    output:
+        peak_dir+'/cfpeakCNN/b{bin_size}_d{decay}_p{pvalue_cfpeak}.bed'
+    threads: min(2, config['threads_mapping'])
+    params:
+        cov_num=cov_num,
+        min_peak_length=10
+    run:
+        shell(filter_peak_recurrence)
+
+
+
+# #######################################
+# # run IDR for cfPeak
+# #######################################
+# rule IDR_cfpeak:
+#     input:
+#         peaks=lambda wildcards: expand(peak_dir+'/cfpeak_by_sample/b{bin_size}_d{decay}_p{pvalue_cfpeak}/{sample_id}.bed',
+#             bin_size=bin_size, pvalue_cfpeak=pvalue_cfpeak, decay=decay, sample_id=sample_ids),
+#         # transcript_table=genome_dir+'/transcript_table/all_newTxID.txt',
+#         # chrom_sizes=genome_dir+'/chrom_sizes/transcriptome_genome_sort_uniq_newTxID'
+#     output:
+#         o1=peak_dir+'/cfpeak_by_group/b{bin_size}_d{decay}_p{pvalue_cfpeak}_all.bed'.format(bin_size=bin_size, pvalue_cfpeak=pvalue_cfpeak, decay=decay),
+#         o2=peak_dir+'/cfpeak_by_group/b{bin_size}_d{decay}_p{pvalue_cfpeak}_optimal.bed'.format(bin_size=bin_size, pvalue_cfpeak=pvalue_cfpeak, decay=decay),
+#     params:
+#         prefix=peak_dir+'/cfpeak_by_group/b{bin_size}_d{decay}_p{pvalue_cfpeak}'.format(bin_size=bin_size, pvalue_cfpeak=pvalue_cfpeak, decay=decay),
+#         alpha=0.05,
+#         size=10,
+#         rankmethod="pvalue",
+#         minentries=1
+#     conda:
+#         "./envs/py37.yml"
+#     log:
+#         peak_dir+'/cfpeak_by_group/log/b{bin_size}_d{decay}_p{pvalue_cfpeak}.log'.format(
+#             bin_size=bin_size, pvalue_cfpeak=pvalue_cfpeak, decay=decay)
+#     # threads: config['threads_mapping']
+#     shell: 
+#         '''
+#         chipr --size {params.size} --alpha {params.alpha} --rankmethod {params.rankmethod} --minentries {params.minentries} --fragment \
+#             -i {input.peaks} \
+#             -o {params.prefix} \
+#             > {log} 2>&1
+#         '''
+# #TODO: IDR_cfpeak by group, then merge all group to build matrix
+
+
+
+########################################
+# consensus peak count  
+########################################
+## map seem randomly select peak, but counts of res nearly the same
+count_peak='''pigz -d -c -p {threads} {input.bed} \
+            | bedtools sort \
+            | bedtools coverage -s -sorted -counts \
+                -a {input.peaks} -b - \
+            | awk 'BEGIN{{OFS="\t";FS="\t"}}{{print $1,$2,$3,$4,$7,$6}}' \
+                > {output}
+        '''
+
+# count piranha 
+rule read_counts_piranha:
+    input:
+        bed=peak_dir+'/tbed_11RNA_primary/{sample_id}.bed.gz',
+        peaks=peak_dir+'/piranha/b{bin_size}_p{pvalue_piranha}.bed'
+    output:
+        # peak_dir+'/peak_counts/b{bin_size}_p{pvalue}/{sample_id}.bed'
+        temp(peak_dir+'/piranha_counts/b{bin_size}_p{pvalue_piranha}/{sample_id}.bed')
+    threads: min(2, config['threads_mapping'])
+    log: peak_dir+'/piranha_counts/b{bin_size}_p{pvalue_piranha}/log/{sample_id}.log'
+    run:
+        shell(count_peak)
+#  bedtools sort may has met some error like: "ERROR: chromomsome sort ordering for file  is inconsistent with other files. Record was", then remove "-sorted" in following bedtools coverage
+
+
+rule count_matrix_piranha:
+    input:
+        peaks=lambda wildcards: expand(peak_dir+'/piranha_counts/b{bin_size}_p{pvalue_piranha}/{sample_id}.bed',
+            bin_size=bin_size, pvalue_piranha=pvalue_piranha, sample_id=sample_ids),
+        transcript_table=genome_dir+'/transcript_table/all_newTxID.txt',
+        reads=peak_dir+'/piranha/b{bin_size}_p{pvalue_piranha}.bed'.format(bin_size=bin_size, pvalue_piranha=pvalue_piranha),
+        chrom_sizes=genome_dir+'/chrom_sizes/transcriptome_genome_sort_uniq_newTxID'
+    output:
+        peak_dir+'/count_matrix/piranha_b{bin_size}_p{pvalue_piranha}.txt'.format(
+            bin_size=bin_size, pvalue_piranha=pvalue_piranha)
+    log:
+        peak_dir+'/count_matrix/log/piranha_b{bin_size}_p{pvalue_piranha}.log'.format(
+            bin_size=bin_size, pvalue_piranha=pvalue_piranha)
+    threads: config['threads_mapping']
+    run:
+        import pandas as pd
+        import re
+        import numpy as np
+
+        transcript_table = pd.read_table(input.transcript_table, sep='\t', dtype='str')
+        transcript_table.drop_duplicates(['transcript_id'], inplace=True)
+        transcript_table.set_index('transcript_id', drop=False, inplace=True)
+        transcript_table = transcript_table.loc[:, ['gene_id', 'gene_name', 'gene_type', 'transcript_id', 'transcript_type', 'start', 'end']].copy()
+        # extend transcript_table with genome regions
+        chrom_sizes = pd.read_table(input.chrom_sizes, sep='\t', names=['chrom', 'end'])
+        chrom_sizes.set_index('chrom', drop=False, inplace=True)
+        reads = pd.read_table(input.reads, sep='\t', header=None,
+            names=['chrom', 'start', 'end', 'peak_id', 'score', 'strand'], dtype='str')
+
+        pat_cov = re.compile(r'{peak_dir}/piranha_counts/b(?P<bin_size>[^/]+)_p(?P<pvalue_piranha>[^/]+)/(?P<sample_id>[^\.]+).bed'.format(peak_dir=peak_dir))
+        mat = []
+        peak_labels = None
+        for filename in input.peaks:
+            sample_id = pat_cov.match(filename).groupdict()['sample_id']
+            df = pd.read_table(filename, header=None)
+            if peak_labels is None:
+                peak_labels = df.iloc[:, 3].values
+            df.index = df.iloc[:, 3]
+            cov = df.iloc[:, 4].copy()
+            cov.name = sample_id
+            mat.append(cov)
+        mat = pd.concat(mat, axis=1)
+        # get seq
+        seq_ids = reads['chrom'].values
+        # get transcript peaks
+        is_genome_peaks = np.isin(seq_ids, chrom_sizes['chrom'].values)
+        seq_ids_genome = seq_ids[is_genome_peaks]
+        seq_ids_transcript = seq_ids[~is_genome_peaks]
+        # annotate transcript peaks with gene information
+        # feature name format: gene_id|gene_type|gene_name|peak_id|transcript_id|start|end
+        feature_names = np.empty(mat.shape[0], dtype='object')
+        print(np.sum(~is_genome_peaks), seq_ids_transcript.shape, transcript_table.loc[seq_ids_transcript, 'gene_name'].values.shape)
+        feature_names[~is_genome_peaks] = transcript_table.loc[seq_ids_transcript, 'gene_id'].values \
+            + '|' + transcript_table.loc[seq_ids_transcript, 'gene_type'].values \
+            + '|' + transcript_table.loc[seq_ids_transcript, 'gene_name'].values \
+            + '|' + reads['peak_id'].values[~is_genome_peaks] \
+            + '|' + transcript_table.loc[seq_ids_transcript, 'transcript_id'].values \
+            + '|' + reads['start'].values[~is_genome_peaks] \
+            + '|' + reads['end'].values[~is_genome_peaks]
+        # annotate genome peaks
+        print(seq_ids_genome.shape, np.sum(is_genome_peaks))
+        gene_ids_genome = seq_ids_genome + '_' + reads['start'].values[is_genome_peaks] \
+            + '_' + reads['end'].values[is_genome_peaks] + '_' + reads['strand'].values[is_genome_peaks]
+        feature_names[is_genome_peaks] = gene_ids_genome \
+            + '|' + transcript_table.loc[seq_ids_genome, 'transcript_type'].values \
+            + '|' + transcript_table.loc[seq_ids_genome, 'transcript_id'].values \
+            + '|' + reads['peak_id'].values[is_genome_peaks] \
+            + '|' + reads['chrom'].values[is_genome_peaks] \
+            + '|' + reads['start'].values[is_genome_peaks] \
+            + '|' + reads['end'].values[is_genome_peaks]
+        mat.index = feature_names
+        mat.index.name = 'feature'
+        mat.to_csv(output[0], sep='\t', header=True, index=True)
+
+
+# count clipper 
+rule read_counts_clipper:
+    input:
+        bed=peak_dir+'/tbed_11RNA_primary/{sample_id}.bed.gz',
+        peaks=peak_dir+'/clipper/b{bin_size}_p{pvalue_clipper}.bed'
+    output:
+        # peak_dir+'/peak_counts/b{bin_size}_p{pvalue}/{sample_id}.bed'
+        temp(peak_dir+'/clipper_counts/b{bin_size}_p{pvalue_clipper}/{sample_id}.bed')
+    threads: min(2, config['threads_mapping'])
+    log: peak_dir+'/clipper_counts/b{bin_size}_p{pvalue_clipper}/log/{sample_id}.log'
+    run:
+        shell(count_peak)
+
+rule count_matrix_clipper:
+    input:
+        peaks=lambda wildcards: expand(peak_dir+'/clipper_counts/b{bin_size}_p{pvalue_clipper}/{sample_id}.bed',
+            bin_size=bin_size, pvalue_clipper=pvalue_clipper, sample_id=sample_ids),
+        transcript_table=genome_dir+'/transcript_table/all_newTxID.txt',
+        reads=peak_dir+'/clipper/b{bin_size}_p{pvalue_clipper}.bed'.format(bin_size=bin_size, pvalue_clipper=pvalue_clipper),
+        chrom_sizes=genome_dir+'/chrom_sizes/transcriptome_genome_sort_uniq_newTxID'
+    output:
+        peak_dir+'/count_matrix/clipper_b{bin_size}_p{pvalue_clipper}.txt'.format(
+            bin_size=bin_size, pvalue_clipper=pvalue_clipper)
+    log:
+        peak_dir+'/count_matrix/log/clipper_b{bin_size}_p{pvalue_clipper}.log'.format(
+            bin_size=bin_size, pvalue_clipper=pvalue_clipper)
+    threads: config['threads_mapping']
+    run:
+        import pandas as pd
+        import re
+        import numpy as np
+
+        transcript_table = pd.read_table(input.transcript_table, sep='\t', dtype='str')
+        transcript_table.drop_duplicates(['transcript_id'], inplace=True)
+        transcript_table.set_index('transcript_id', drop=False, inplace=True)
+        transcript_table = transcript_table.loc[:, ['gene_id', 'gene_name', 'gene_type', 'transcript_id', 'transcript_type', 'start', 'end']].copy()
+        # extend transcript_table with genome regions
+        chrom_sizes = pd.read_table(input.chrom_sizes, sep='\t', names=['chrom', 'end'])
+        chrom_sizes.set_index('chrom', drop=False, inplace=True)
+        reads = pd.read_table(input.reads, sep='\t', header=None,
+            names=['chrom', 'start', 'end', 'peak_id', 'score', 'strand'], dtype='str')
+
+        pat_cov = re.compile(r'{peak_dir}/clipper_counts/b(?P<bin_size>[^/]+)_p(?P<pvalue_clipper>[^/]+)/(?P<sample_id>[^\.]+).bed'.format(peak_dir=peak_dir))
+        mat = []
+        peak_labels = None
+        for filename in input.peaks:
+            sample_id = pat_cov.match(filename).groupdict()['sample_id']
+            df = pd.read_table(filename, header=None)
+            if peak_labels is None:
+                peak_labels = df.iloc[:, 3].values
+            df.index = df.iloc[:, 3]
+            cov = df.iloc[:, 4].copy()
+            cov.name = sample_id
+            mat.append(cov)
+        mat = pd.concat(mat, axis=1)
+        # get seq
+        seq_ids = reads['chrom'].values
+        # get transcript peaks
+        is_genome_peaks = np.isin(seq_ids, chrom_sizes['chrom'].values)
+        seq_ids_genome = seq_ids[is_genome_peaks]
+        seq_ids_transcript = seq_ids[~is_genome_peaks]
+        # annotate transcript peaks with gene information
+        # feature name format: gene_id|gene_type|gene_name|peak_id|transcript_id|start|end
+        feature_names = np.empty(mat.shape[0], dtype='object')
+        print(np.sum(~is_genome_peaks), seq_ids_transcript.shape, transcript_table.loc[seq_ids_transcript, 'gene_name'].values.shape)
+        feature_names[~is_genome_peaks] = transcript_table.loc[seq_ids_transcript, 'gene_id'].values \
+            + '|' + transcript_table.loc[seq_ids_transcript, 'gene_type'].values \
+            + '|' + transcript_table.loc[seq_ids_transcript, 'gene_name'].values \
+            + '|' + reads['peak_id'].values[~is_genome_peaks] \
+            + '|' + transcript_table.loc[seq_ids_transcript, 'transcript_id'].values \
+            + '|' + reads['start'].values[~is_genome_peaks] \
+            + '|' + reads['end'].values[~is_genome_peaks]
+        # annotate genome peaks
+        print(seq_ids_genome.shape, np.sum(is_genome_peaks))
+        gene_ids_genome = seq_ids_genome + '_' + reads['start'].values[is_genome_peaks] \
+            + '_' + reads['end'].values[is_genome_peaks] + '_' + reads['strand'].values[is_genome_peaks]
+        feature_names[is_genome_peaks] = gene_ids_genome \
+            + '|' + transcript_table.loc[seq_ids_genome, 'transcript_type'].values \
+            + '|' + transcript_table.loc[seq_ids_genome, 'transcript_id'].values \
+            + '|' + reads['peak_id'].values[is_genome_peaks] \
+            + '|' + reads['chrom'].values[is_genome_peaks] \
+            + '|' + reads['start'].values[is_genome_peaks] \
+            + '|' + reads['end'].values[is_genome_peaks]
+        mat.index = feature_names
+        mat.index.name = 'feature'
+        mat.to_csv(output[0], sep='\t', header=True, index=True)
+
+
+# count clam 
+rule read_counts_clam:
+    input:
+        bed=peak_dir+'/tbed_RNA_EM/{sample_id}.bed.gz',
+        peaks=peak_dir+'/clam/b{bin_size}_p{pvalue_clam}.bed'
+    output:
+        # peak_dir+'/peak_counts/b{bin_size}_p{pvalue}/{sample_id}.bed'
+        temp(peak_dir+'/clam_counts/b{bin_size}_p{pvalue_clam}/{sample_id}.bed')
+    threads: min(2, config['threads_mapping'])
+    log: peak_dir+'/clam_counts/b{bin_size}_p{pvalue_clam}/log/{sample_id}.log'
+    run:
+        shell(count_peak)
+
+rule count_matrix_clam:
+    input:
+        peaks=lambda wildcards: expand(peak_dir+'/clam_counts/b{bin_size}_p{pvalue_clam}/{sample_id}.bed',
+            bin_size=bin_size, pvalue_clam=pvalue_clam, sample_id=sample_ids),
+        transcript_table=genome_dir+'/transcript_table/all_newTxID.txt',
+        reads=peak_dir+'/clam/b{bin_size}_p{pvalue_clam}.bed'.format(bin_size=bin_size, pvalue_clam=pvalue_clam),
+        chrom_sizes=genome_dir+'/chrom_sizes/transcriptome_genome_sort_uniq_newTxID'
+    output:
+        peak_dir+'/count_matrix/clam_b{bin_size}_p{pvalue_clam}.txt'.format(
+            bin_size=bin_size, pvalue_clam=pvalue_clam)
+    log:
+        peak_dir+'/count_matrix/log/clam_b{bin_size}_p{pvalue_clam}.log'.format(
+            bin_size=bin_size, pvalue_clam=pvalue_clam)
+    threads: config['threads_mapping']
+    run:
+        import pandas as pd
+        import re
+        import numpy as np
+
+        transcript_table = pd.read_table(input.transcript_table, sep='\t', dtype='str')
+        transcript_table.drop_duplicates(['transcript_id'], inplace=True)
+        transcript_table.set_index('transcript_id', drop=False, inplace=True)
+        transcript_table = transcript_table.loc[:, ['gene_id', 'gene_name', 'gene_type', 'transcript_id', 'transcript_type', 'start', 'end']].copy()
+        # extend transcript_table with genome regions
+        chrom_sizes = pd.read_table(input.chrom_sizes, sep='\t', names=['chrom', 'end'])
+        chrom_sizes.set_index('chrom', drop=False, inplace=True)
+        reads = pd.read_table(input.reads, sep='\t', header=None,
+            names=['chrom', 'start', 'end', 'peak_id', 'score', 'strand'], dtype='str')
+
+        pat_cov = re.compile(r'{peak_dir}/clam_counts/b(?P<bin_size>[^/]+)_p(?P<pvalue_clam>[^/]+)/(?P<sample_id>[^\.]+).bed'.format(peak_dir=peak_dir))
+        mat = []
+        peak_labels = None
+        for filename in input.peaks:
+            sample_id = pat_cov.match(filename).groupdict()['sample_id']
+            df = pd.read_table(filename, header=None)
+            if peak_labels is None:
+                peak_labels = df.iloc[:, 3].values
+            df.index = df.iloc[:, 3]
+            cov = df.iloc[:, 4].copy()
+            cov.name = sample_id
+            mat.append(cov)
+        mat = pd.concat(mat, axis=1)
+        # get seq
+        seq_ids = reads['chrom'].values
+        # get transcript peaks
+        is_genome_peaks = np.isin(seq_ids, chrom_sizes['chrom'].values)
+        seq_ids_genome = seq_ids[is_genome_peaks]
+        seq_ids_transcript = seq_ids[~is_genome_peaks]
+        # annotate transcript peaks with gene information
+        # feature name format: gene_id|gene_type|gene_name|peak_id|transcript_id|start|end
+        feature_names = np.empty(mat.shape[0], dtype='object')
+        print(np.sum(~is_genome_peaks), seq_ids_transcript.shape, transcript_table.loc[seq_ids_transcript, 'gene_name'].values.shape)
+        feature_names[~is_genome_peaks] = transcript_table.loc[seq_ids_transcript, 'gene_id'].values \
+            + '|' + transcript_table.loc[seq_ids_transcript, 'gene_type'].values \
+            + '|' + transcript_table.loc[seq_ids_transcript, 'gene_name'].values \
+            + '|' + reads['peak_id'].values[~is_genome_peaks] \
+            + '|' + transcript_table.loc[seq_ids_transcript, 'transcript_id'].values \
+            + '|' + reads['start'].values[~is_genome_peaks] \
+            + '|' + reads['end'].values[~is_genome_peaks]
+        # annotate genome peaks
+        print(seq_ids_genome.shape, np.sum(is_genome_peaks))
+        gene_ids_genome = seq_ids_genome + '_' + reads['start'].values[is_genome_peaks] \
+            + '_' + reads['end'].values[is_genome_peaks] + '_' + reads['strand'].values[is_genome_peaks]
+        feature_names[is_genome_peaks] = gene_ids_genome \
+            + '|' + transcript_table.loc[seq_ids_genome, 'transcript_type'].values \
+            + '|' + transcript_table.loc[seq_ids_genome, 'transcript_id'].values \
+            + '|' + reads['peak_id'].values[is_genome_peaks] \
+            + '|' + reads['chrom'].values[is_genome_peaks] \
+            + '|' + reads['start'].values[is_genome_peaks] \
+            + '|' + reads['end'].values[is_genome_peaks]
+        mat.index = feature_names
+        mat.index.name = 'feature'
+        mat.to_csv(output[0], sep='\t', header=True, index=True)
+
+
+# count cfpeakCNN 
+rule read_counts_cfpeakCNN:
+    input:
+        bed=peak_dir+'/tbed_RNA_EM/{sample_id}.bed.gz',
+        peaks=peak_dir+'/cfpeakCNN/b{bin_size}_d{decay}_p{pvalue_cfpeak}.bed'
+    output:
+        # peak_dir+'/peak_counts/b{bin_size}_p{pvalue}/{sample_id}.bed'
+        temp(peak_dir+'/cfpeakCNN_counts/b{bin_size}_d{decay}_p{pvalue_cfpeak}/{sample_id}.bed')
+    threads: min(2, config['threads_mapping'])
+    log: peak_dir+'/cfpeakCNN_counts/b{bin_size}_d{decay}_p{pvalue_cfpeak}/log/{sample_id}.log'
+    run:
+        shell(count_peak)
+#  bedtools sort may has met some error like: "ERROR: chromomsome sort ordering for file  is inconsistent with other files. Record was", then remove "-sorted" in following bedtools coverage
+# 
+
+rule count_matrix_cfpeakCNN:
+    input:
+        peaks=lambda wildcards: expand(peak_dir+'/cfpeakCNN_counts/b{bin_size}_d{decay}_p{pvalue_cfpeak}/{sample_id}.bed',
+            bin_size=bin_size, pvalue_cfpeak=pvalue_cfpeak, decay=decay, sample_id=sample_ids),
+        transcript_table=genome_dir+'/transcript_table/all_newTxID.txt',
+        reads=peak_dir+'/cfpeakCNN/b{bin_size}_d{decay}_p{pvalue_cfpeak}.bed'.format(bin_size=bin_size, pvalue_cfpeak=pvalue_cfpeak, decay=decay),
+        chrom_sizes=genome_dir+'/chrom_sizes/transcriptome_genome_sort_uniq_newTxID'
+    output:
+        peak_dir+'/count_matrix/cfpeakCNN_b{bin_size}_d{decay}_p{pvalue_cfpeak}.txt'.format(
+            bin_size=bin_size, pvalue_cfpeak=pvalue_cfpeak, decay=decay)
+    log:
+        peak_dir+'/count_matrix/log/cfpeakCNN_b{bin_size}_d{decay}_p{pvalue_cfpeak}.log'.format(
+            bin_size=bin_size, pvalue_cfpeak=pvalue_cfpeak, decay=decay)
+    threads: config['threads_mapping']
+    run:
+        import pandas as pd
+        import re
+        import numpy as np
+
+        transcript_table = pd.read_table(input.transcript_table, sep='\t', dtype='str')
+        transcript_table.drop_duplicates(['transcript_id'], inplace=True)
+        transcript_table.set_index('transcript_id', drop=False, inplace=True)
+        transcript_table = transcript_table.loc[:, ['gene_id', 'gene_name', 'gene_type', 'transcript_id', 'transcript_type', 'start', 'end']].copy()
+        # extend transcript_table with genome regions
+        chrom_sizes = pd.read_table(input.chrom_sizes, sep='\t', names=['chrom', 'end'])
+        chrom_sizes.set_index('chrom', drop=False, inplace=True)
+        reads = pd.read_table(input.reads, sep='\t', header=None,
+            names=['chrom', 'start', 'end', 'peak_id', 'score', 'strand'], dtype='str')
+
+        pat_cov = re.compile(r'{peak_dir}/cfpeakCNN_counts/b(?P<bin_size>[^/]+)_d(?P<decay>[^/]+)_p(?P<pvalue_cfpeak>[^/]+)/(?P<sample_id>[^\.]+).bed'.format(peak_dir=peak_dir))
+        mat = []
+        peak_labels = None
+        for filename in input.peaks:
+            sample_id = pat_cov.match(filename).groupdict()['sample_id']
+            df = pd.read_table(filename, header=None)
+            if peak_labels is None:
+                peak_labels = df.iloc[:, 3].values
+            df.index = df.iloc[:, 3]
+            cov = df.iloc[:, 4].copy()
+            cov.name = sample_id
+            mat.append(cov)
+        mat = pd.concat(mat, axis=1)
+        # get seq
+        seq_ids = reads['chrom'].values
+        # get transcript peaks
+        is_genome_peaks = np.isin(seq_ids, chrom_sizes['chrom'].values)
+        seq_ids_genome = seq_ids[is_genome_peaks]
+        seq_ids_transcript = seq_ids[~is_genome_peaks]
+        # annotate transcript peaks with gene information
+        # feature name format: gene_id|gene_type|gene_name|peak_id|transcript_id|start|end
+        feature_names = np.empty(mat.shape[0], dtype='object')
+        print(np.sum(~is_genome_peaks), seq_ids_transcript.shape, transcript_table.loc[seq_ids_transcript, 'gene_name'].values.shape)
+        feature_names[~is_genome_peaks] = transcript_table.loc[seq_ids_transcript, 'gene_id'].values \
+            + '|' + transcript_table.loc[seq_ids_transcript, 'gene_type'].values \
+            + '|' + transcript_table.loc[seq_ids_transcript, 'gene_name'].values \
+            + '|' + reads['peak_id'].values[~is_genome_peaks] \
+            + '|' + transcript_table.loc[seq_ids_transcript, 'transcript_id'].values \
+            + '|' + reads['start'].values[~is_genome_peaks] \
+            + '|' + reads['end'].values[~is_genome_peaks]
+        # annotate genome peaks
+        print(seq_ids_genome.shape, np.sum(is_genome_peaks))
+        gene_ids_genome = seq_ids_genome + '_' + reads['start'].values[is_genome_peaks] \
+            + '_' + reads['end'].values[is_genome_peaks] + '_' + reads['strand'].values[is_genome_peaks]
+        feature_names[is_genome_peaks] = gene_ids_genome \
+            + '|' + transcript_table.loc[seq_ids_genome, 'transcript_type'].values \
+            + '|' + transcript_table.loc[seq_ids_genome, 'transcript_id'].values \
+            + '|' + reads['peak_id'].values[is_genome_peaks] \
+            + '|' + reads['chrom'].values[is_genome_peaks] \
+            + '|' + reads['start'].values[is_genome_peaks] \
+            + '|' + reads['end'].values[is_genome_peaks]
+        mat.index = feature_names
+        mat.index.name = 'feature'
+        mat.to_csv(output[0], sep='\t', header=True, index=True)
+
