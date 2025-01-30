@@ -19,7 +19,7 @@
 
 <br />
 <p align="center">
-  <a href="https://github.com/hunnngry/cfPeak">
+  <a href="https://github.com/lulab/cfPeak">
     <img src="_plots/cfPeak.png" alt="Logo" width="160" height="80">
   </a>
 
@@ -64,7 +64,7 @@ We have discovered vast number of narrow regions protected from degradation from
 
 <br />
 <p align="center">
-  <a href="https://github.com/hunnngry/cfPeak">
+  <a href="https://github.com/lulab/cfPeak">
     <img src="_plots/pipeline.png" alt="Pipeline" width="600" height="480">
   </a>
 
@@ -72,7 +72,7 @@ We have discovered vast number of narrow regions protected from degradation from
 
 <br />
 <p align="center">
-  <a href="https://github.com/hunnngry/cfPeak">
+  <a href="https://github.com/lulab/cfPeak">
     <img src="_plots/modules.png" alt="Modules" width="600" height="600">
   </a>
 
@@ -92,7 +92,7 @@ Following steps below to get a local copy and run
 1.Clone the repo
 
 ```sh
-git clone https://github.com/hunnngry/cfPeak.git
+git clone https://github.com/lulab/cfPeak.git
 ```
 
 2.Create conda global environment
@@ -244,15 +244,15 @@ other additional example reference files, figure scripts, matrices, and tables r
 
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 
-<!-- [license-shield]: https://img.shields.io/github/license/hunnngry/cfPeak.svg?style=for-the-badge
+<!-- [license-shield]: https://img.shields.io/github/license/lulab/cfPeak.svg?style=for-the-badge
 
-[license-url]: https://github.com/hunnngry/cfPeak/blob/master/LICENSE.txt -->
+[license-url]: https://github.com/lulab/cfPeak/blob/master/LICENSE.txt -->
 
-[contributors-shield]: https://img.shields.io/github/contributors/hunnngry/cfPeak.svg?style=for-the-badge
-[contributors-url]: https://github.com/hunnngry/cfPeak/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/hunnngry/cfPeak.svg?style=for-the-badge
-[forks-url]: https://github.com/hunnngry/cfPeak/network/members
-[stars-shield]: https://img.shields.io/github/stars/hunnngry/cfPeak.svg?style=for-the-badge
-[stars-url]: https://github.com/hunnngry/cfPeak/stargazers
-[issues-shield]: https://img.shields.io/github/issues/hunnngry/cfPeak.svg?style=for-the-badge
+[contributors-shield]: https://img.shields.io/github/contributors/lulab/cfPeak.svg?style=for-the-badge
+[contributors-url]: https://github.com/lulab/cfPeak/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/lulab/cfPeak.svg?style=for-the-badge
+[forks-url]: https://github.com/lulab/cfPeak/network/members
+[stars-shield]: https://img.shields.io/github/stars/lulab/cfPeak.svg?style=for-the-badge
+[stars-url]: https://github.com/lulab/cfPeak/stargazers
+[issues-shield]: https://img.shields.io/github/issues/lulab/cfPeak.svg?style=for-the-badge
 [issues-url]: https://github.com/hunnngry/cfPeak/issues
