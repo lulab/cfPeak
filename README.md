@@ -68,13 +68,6 @@ We have discovered vast number of narrow regions protected from degradation from
     <img src="_plots/pipeline.png" alt="Pipeline" width="600" height="480">
   </a>
 
-<!-- PROJECT modules -->
-
-<br />
-<p align="center">
-  <a href="https://github.com/lulab/cfPeak">
-    <img src="_plots/modules.png" alt="Modules" width="600" height="600">
-  </a>
 
 <!-- GETTING STARTED -->
 
